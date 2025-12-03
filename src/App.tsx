@@ -25,9 +25,22 @@ function App() {
 
         if (savedHowTos) {
             const parsed = JSON.parse(savedHowTos)
-            setHowTos(parsed)
-            if (parsed.length > 0) {
-                setSelectedHowTo(parsed[0])
+
+            // Fix stuck generating items (interrupted by reload)
+            const fixed = parsed.map((h: HowTo) => {
+                if (h.status === 'generating') {
+                    return {
+                        ...h,
+                        status: 'error' as const,
+                        title: h.title === 'Generating...' ? 'Generation Interrupted' : h.title
+                    }
+                }
+                return h
+            })
+
+            setHowTos(fixed)
+            if (fixed.length > 0) {
+                setSelectedHowTo(fixed[0])
             }
         }
 
