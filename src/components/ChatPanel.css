@@ -155,3 +155,69 @@
     opacity: 0.5;
     cursor: not-allowed;
 }
+
+/* Mobile Responsiveness */
+@media (max-width: 768px) {
+    .chat-panel {
+        border-left: none;
+    }
+
+    .chat-header {
+        padding: var(--spacing-md);
+    }
+
+    .chat-title {
+        font-size: var(--font-size-base);
+    }
+
+    .chat-messages {
+        padding: var(--spacing-md);
+        gap: var(--spacing-sm);
+    }
+
+    .chat-message.user,
+    .chat-message.assistant {
+        max-width: 90%;
+    }
+
+    .chat-message.system {
+        max-width: 95%;
+    }
+
+    .chat-message.system .message-content {
+        padding: var(--spacing-sm);
+        font-size: var(--font-size-xs);
+    }
+
+    .chat-message.user .message-content,
+    .chat-message.assistant .message-content {
+        padding: var(--spacing-sm) var(--spacing-md);
+        font-size: var(--font-size-sm);
+    }
+
+    .message-time {
+        font-size: 0.625rem;
+    }
+
+    .chat-input-container {
+        padding: var(--spacing-md);
+        gap: var(--spacing-sm);
+    }
+
+    .chat-input {
+        min-height: 80px;
+        font-size: 16px; /* Prevents iOS zoom on focus */
+    }
+
+    .chat-send-btn {
+        width: 100%;
+        min-height: 48px;
+        justify-content: center;
+    }
+
+    /* Cancel button touch-friendly */
+    .chat-header .btn {
+        min-height: 44px;
+        padding: var(--spacing-sm) var(--spacing-md);
+    }
+}

@@ -1,6 +1,7 @@
 .app {
     width: 100vw;
     height: 100vh;
+    height: 100dvh; /* Dynamic viewport height for mobile */
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -39,6 +40,19 @@
     overflow: hidden;
 }
 
+/* Panel containers for mobile view switching */
+.panel-sidebar,
+.panel-canvas,
+.panel-chat {
+    display: contents;
+}
+
+.panel-sidebar > *,
+.panel-canvas > *,
+.panel-chat > * {
+    min-height: 0;
+}
+
 /* Responsive Design */
 @media (max-width: 1200px) {
     .app-main {
@@ -47,8 +61,14 @@
 }
 
 @media (max-width: 768px) {
+    .app.is-mobile {
+        padding-bottom: env(safe-area-inset-bottom);
+    }
+
     .app-main {
         grid-template-columns: 1fr;
+        grid-template-rows: 1fr;
+        position: relative;
     }
 
     .app-header {
@@ -58,4 +78,80 @@
     .app-title {
         font-size: var(--font-size-xl);
     }
+
+    /* Panel visibility for mobile view switching */
+    .panel-sidebar,
+    .panel-canvas,
+    .panel-chat {
+        display: none;
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+    }
+
+    .panel-sidebar.mobile-active,
+    .panel-canvas.mobile-active,
+    .panel-chat.mobile-active {
+        display: flex;
+        flex-direction: column;
+        position: relative;
+    }
+
+    .panel-sidebar > *,
+    .panel-canvas > *,
+    .panel-chat > * {
+        flex: 1;
+        min-height: 0;
+        width: 100%;
+    }
+}
+
+/* Mobile Bottom Navigation */
+.mobile-nav {
+    display: flex;
+    background: var(--color-bg-secondary);
+    border-top: 1px solid var(--color-border);
+    padding: var(--spacing-xs) 0;
+    padding-bottom: calc(var(--spacing-xs) + env(safe-area-inset-bottom));
+    justify-content: space-around;
+    position: relative;
+    z-index: 100;
+}
+
+.mobile-nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-sm) var(--spacing-md);
+    background: transparent;
+    border: none;
+    color: var(--color-text-muted);
+    font-family: var(--font-family);
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    min-height: 56px;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.mobile-nav-item:active {
+    transform: scale(0.95);
+}
+
+.mobile-nav-item.active {
+    color: var(--color-accent-primary);
+}
+
+.mobile-nav-item.active svg {
+    filter: drop-shadow(0 0 8px rgba(99, 102, 241, 0.5));
+}
+
+.mobile-nav-item span {
+    line-height: 1;
 }

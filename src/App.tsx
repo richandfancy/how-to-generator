@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react'
-import { Settings } from 'lucide-react'
+import { Settings, FolderOpen, Image, MessageSquare } from 'lucide-react'
 import Sidebar from './components/Sidebar'
 import Canvas from './components/Canvas'
 import ChatPanel from './components/ChatPanel'
 import SettingsModal from './components/SettingsModal'
 import { HowTo, AppSettings } from './types'
 import './App.css'
+
+type MobileView = 'library' | 'canvas' | 'chat'
 
 function App() {
     const [howTos, setHowTos] = useState<HowTo[]>([])
@@ -17,6 +19,18 @@ function App() {
     })
     const [showSettings, setShowSettings] = useState(false)
     const [isCreating, setIsCreating] = useState(false)
+    const [mobileView, setMobileView] = useState<MobileView>('library')
+    const [isMobile, setIsMobile] = useState(false)
+
+    // Detect mobile viewport
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth <= 768)
+        }
+        checkMobile()
+        window.addEventListener('resize', checkMobile)
+        return () => window.removeEventListener('resize', checkMobile)
+    }, [])
 
     // Load data from localStorage on mount
     useEffect(() => {
@@ -61,6 +75,9 @@ function App() {
     const handleCreateNew = () => {
         setIsCreating(true)
         setSelectedHowTo(null)
+        if (isMobile) {
+            setMobileView('chat')
+        }
     }
 
     const handleGenerateNew = async (prompt: string, basePrompt: string, format: string) => {
@@ -163,6 +180,9 @@ function App() {
     const handleSelectHowTo = (howTo: HowTo) => {
         setSelectedHowTo(howTo)
         setIsCreating(false)
+        if (isMobile) {
+            setMobileView('canvas')
+        }
     }
 
     const handleUpdateHowTo = (updatedHowTo: HowTo) => {
@@ -178,7 +198,7 @@ function App() {
     }
 
     return (
-        <div className="app">
+        <div className={`app ${isMobile ? 'is-mobile' : ''}`}>
             {/* Header */}
             <header className="app-header">
                 <div className="header-content">
@@ -198,29 +218,62 @@ function App() {
 
             {/* Main 3-Panel Layout */}
             <div className="app-main">
-                <Sidebar
-                    howTos={howTos}
-                    selectedHowTo={selectedHowTo}
-                    onSelect={handleSelectHowTo}
-                    onDelete={handleDeleteHowTo}
-                    onCreateNew={handleCreateNew}
-                />
+                <div className={`panel-sidebar ${mobileView === 'library' ? 'mobile-active' : ''}`}>
+                    <Sidebar
+                        howTos={howTos}
+                        selectedHowTo={selectedHowTo}
+                        onSelect={handleSelectHowTo}
+                        onDelete={handleDeleteHowTo}
+                        onCreateNew={handleCreateNew}
+                    />
+                </div>
 
-                <Canvas
-                    howTo={selectedHowTo}
-                    settings={settings}
-                />
+                <div className={`panel-canvas ${mobileView === 'canvas' ? 'mobile-active' : ''}`}>
+                    <Canvas
+                        howTo={selectedHowTo}
+                        settings={settings}
+                    />
+                </div>
 
-                <ChatPanel
-                    howTo={selectedHowTo}
-                    settings={settings}
-                    isCreating={isCreating}
-                    onGenerateNew={handleGenerateNew}
-                    onHowToCreated={handleHowToCreated}
-                    onHowToUpdated={handleUpdateHowTo}
-                    onCancelCreate={handleCancelCreate}
-                />
+                <div className={`panel-chat ${mobileView === 'chat' ? 'mobile-active' : ''}`}>
+                    <ChatPanel
+                        howTo={selectedHowTo}
+                        settings={settings}
+                        isCreating={isCreating}
+                        onGenerateNew={handleGenerateNew}
+                        onHowToCreated={handleHowToCreated}
+                        onHowToUpdated={handleUpdateHowTo}
+                        onCancelCreate={handleCancelCreate}
+                    />
+                </div>
             </div>
+
+            {/* Mobile Bottom Navigation */}
+            {isMobile && (
+                <nav className="mobile-nav">
+                    <button
+                        className={`mobile-nav-item ${mobileView === 'library' ? 'active' : ''}`}
+                        onClick={() => setMobileView('library')}
+                    >
+                        <FolderOpen size={22} />
+                        <span>Library</span>
+                    </button>
+                    <button
+                        className={`mobile-nav-item ${mobileView === 'canvas' ? 'active' : ''}`}
+                        onClick={() => setMobileView('canvas')}
+                    >
+                        <Image size={22} />
+                        <span>Canvas</span>
+                    </button>
+                    <button
+                        className={`mobile-nav-item ${mobileView === 'chat' ? 'active' : ''}`}
+                        onClick={() => setMobileView('chat')}
+                    >
+                        <MessageSquare size={22} />
+                        <span>Chat</span>
+                    </button>
+                </nav>
+            )}
 
             {/* Settings Modal */}
             {showSettings && (
