@@ -247,7 +247,12 @@ Make it clear, concise, and suitable for printing.`
 
                 if (error) {
                     console.error('Supabase upload error:', error)
-                    throw new Error('Failed to upload to Supabase: ' + error.message)
+                    console.log('⚠️ Falling back to Data URI...')
+                    return {
+                        url: `data:${mimeType};base64,${dataBuffer.toString('base64')}`,
+                        size: (dataBuffer.length / 1024).toFixed(2) + ' KB',
+                        filename: null
+                    }
                 }
 
                 const { data: publicData } = supabase.storage

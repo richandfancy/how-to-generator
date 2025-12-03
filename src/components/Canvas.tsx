@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ZoomIn, ZoomOut, Download, RotateCcw, History } from 'lucide-react'
+import { ZoomIn, ZoomOut, Download, RotateCcw, History, AlertCircle } from 'lucide-react'
 import { HowTo, AppSettings } from '../types'
 import './Canvas.css'
 
@@ -91,6 +91,18 @@ export default function Canvas({ howTo, settings }: CanvasProps) {
                             <h3>No How-To Selected</h3>
                             <p className="text-muted">
                                 Select a how-to from the library or create a new one to get started
+                            </p>
+                        </div>
+                    </div>
+                ) : howTo.status === 'error' ? (
+                    <div className="canvas-empty">
+                        <div className="empty-state">
+                            <AlertCircle size={64} className="text-red-500 mb-4" />
+                            <h3>Generation Failed</h3>
+                            <p className="text-muted">
+                                Something went wrong while generating the visual.
+                                <br />
+                                Please try again.
                             </p>
                         </div>
                     </div>
