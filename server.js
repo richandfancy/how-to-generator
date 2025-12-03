@@ -17,10 +17,12 @@ app.use(cors())
 app.use(express.json())
 
 // Serve static files from uploads directory (fallback for local dev)
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+if (!process.env.VERCEL) {
+    app.use('/uploads', express.static(path.join(__dirname, 'uploads')))
+}
 
-// Ensure uploads directory exists
-if (!fs.existsSync(path.join(__dirname, 'uploads'))) {
+// Ensure uploads directory exists (only for local dev)
+if (!process.env.VERCEL && !fs.existsSync(path.join(__dirname, 'uploads'))) {
     fs.mkdirSync(path.join(__dirname, 'uploads'))
 }
 
