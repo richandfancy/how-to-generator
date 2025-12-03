@@ -70,8 +70,9 @@ function App() {
         // 2. Add to list immediately
         setHowTos(prev => [placeholderHowTo, ...prev])
 
-        // 3. Keep "Creating" mode active so user can add another one immediately
-        // (Optional: could also select the new item, but user wants to create multiple)
+        // 3. Select the new item and exit creation mode so user can refine it
+        setSelectedHowTo(placeholderHowTo)
+        setIsCreating(false)
 
         try {
             // 4. Call API in background
@@ -88,29 +89,38 @@ function App() {
             const data = await response.json()
 
             // 5. Update placeholder with real data
+            const updateData = {
+                title: data.title,
+                imageUrl: data.imageUrl,
+                versions: [{
+                    version: 1,
+                    prompt: `${basePrompt}, ${prompt}`,
+                    imageUrl: data.imageUrl,
+                    timestamp: new Date().toISOString()
+                }],
+                currentVersion: 1,
+                status: 'completed' as const,
+                messages: [{
+                    role: 'assistant' as const,
+                    content: `Created "${data.title}"! The visual has been generated.`,
+                    timestamp: new Date().toISOString()
+                }]
+            }
+
             setHowTos(prev => prev.map(h => {
                 if (h.id === tempId) {
-                    return {
-                        ...h,
-                        title: data.title,
-                        imageUrl: data.imageUrl,
-                        versions: [{
-                            version: 1,
-                            prompt: `${basePrompt}, ${prompt}`,
-                            imageUrl: data.imageUrl,
-                            timestamp: new Date().toISOString()
-                        }],
-                        currentVersion: 1,
-                        status: 'completed',
-                        messages: [{
-                            role: 'assistant',
-                            content: `Created "${data.title}"! The visual has been generated.`,
-                            timestamp: new Date().toISOString()
-                        }]
-                    }
+                    return { ...h, ...updateData }
                 }
                 return h
             }))
+
+            setSelectedHowTo(prev => {
+                if (prev?.id === tempId) {
+                    // We need to cast prev to HowTo to satisfy TS, though the check implies it exists
+                    return { ...prev!, ...updateData }
+                }
+                return prev
+            })
 
         } catch (error) {
             console.error('Generation error:', error)
