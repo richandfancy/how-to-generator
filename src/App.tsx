@@ -9,6 +9,8 @@ import SettingsModal from './components/SettingsModal'
 import { HowTo, AppSettings, ChatMessage } from './types'
 import './App.css'
 
+import { db } from './lib/db'
+
 type MobileView = 'library' | 'canvas' | 'chat'
 
 function App() {
@@ -35,38 +37,45 @@ function App() {
         return () => window.removeEventListener('resize', checkMobile)
     }, [])
 
-    // Load data from localStorage on mount
+
+    // Load data from Supabase on mount
     useEffect(() => {
-        const savedHowTos = localStorage.getItem('howTos')
-        const savedSettings = localStorage.getItem('settings')
+        const loadData = async () => {
+            // 1. Load settings from local (settings stay local for now)
+            const savedSettings = localStorage.getItem('settings')
+            if (savedSettings) {
+                setSettings(JSON.parse(savedSettings))
+            }
 
-        if (savedHowTos) {
-            const parsed = JSON.parse(savedHowTos)
+            // 2. Load How-Tos from Supabase
+            const dbHowTos = await db.getAll()
 
-            // Fix stuck generating items (interrupted by reload)
-            const fixed = parsed.map((h: HowTo) => {
-                if (h.status === 'generating') {
-                    return {
-                        ...h,
-                        status: 'error' as const,
-                        title: h.title === 'Generating...' ? 'Generation Interrupted' : h.title
+            // 3. Check for local data to migrate
+            const localHowTosStr = localStorage.getItem('howTos')
+            if (localHowTosStr && dbHowTos.length === 0) {
+                console.log('Migrating local data to Supabase...')
+                const localHowTos = JSON.parse(localHowTosStr)
+                for (const h of localHowTos) {
+                    if (h.status !== 'generating') {
+                        await db.save(h)
                     }
                 }
-                return h
-            })
-
-            setHowTos(fixed)
-
-            // Only select default if no URL params present
-            const urlId = new URLSearchParams(window.location.search).get('id')
-            if (!urlId && fixed.length > 0) {
-                setSelectedHowTo(fixed[0])
+                // Reload from DB after migration
+                const migrated = await db.getAll()
+                setHowTos(migrated)
+                if (migrated.length > 0 && !new URLSearchParams(window.location.search).get('id')) {
+                    setSelectedHowTo(migrated[0])
+                }
+                // Clear local storage after successful migration
+                localStorage.removeItem('howTos')
+            } else {
+                setHowTos(dbHowTos)
+                if (dbHowTos.length > 0 && !new URLSearchParams(window.location.search).get('id')) {
+                    setSelectedHowTo(dbHowTos[0])
+                }
             }
         }
-
-        if (savedSettings) {
-            setSettings(JSON.parse(savedSettings))
-        }
+        loadData()
     }, [])
 
     // Sync URL -> State
@@ -111,14 +120,13 @@ function App() {
         }
     }, [selectedHowTo, isCreating])
 
-    // Save to localStorage when data changes
-    useEffect(() => {
-        localStorage.setItem('howTos', JSON.stringify(howTos))
-    }, [howTos])
-
+    // Save settings to localStorage
     useEffect(() => {
         localStorage.setItem('settings', JSON.stringify(settings))
     }, [settings])
+
+    // REMOVED: useEffect for saving howTos to localStorage
+
 
     const handleCreateNew = () => {
         setIsCreating(true)
@@ -228,16 +236,23 @@ function App() {
                 messages: [userMessage, assistantMessage]
             }
 
+            // Save to DB
+            const completedHowTo: HowTo = {
+                ...placeholderHowTo,
+                ...updateData
+            }
+            db.save(completedHowTo)
+
             setHowTos(prev => prev.map(h => {
                 if (h.id === tempId) {
-                    return { ...h, ...updateData }
+                    return completedHowTo
                 }
                 return h
             }))
 
             setSelectedHowTo(prev => {
                 if (prev?.id === tempId) {
-                    return { ...prev!, ...updateData }
+                    return completedHowTo
                 }
                 return prev
             })
@@ -282,6 +297,7 @@ function App() {
         setHowTos([newHowTo, ...howTos])
         setSelectedHowTo(newHowTo)
         setIsCreating(false)
+        db.save(newHowTo)
     }
 
     const handleCancelCreate = () => {
@@ -302,6 +318,7 @@ function App() {
     const handleUpdateHowTo = (updatedHowTo: HowTo) => {
         setHowTos(howTos.map(h => h.id === updatedHowTo.id ? updatedHowTo : h))
         setSelectedHowTo(updatedHowTo)
+        db.save(updatedHowTo)
     }
 
     const handleDeleteHowTo = (id: string) => {
@@ -310,6 +327,7 @@ function App() {
             setSelectedHowTo(howTos[0] || null)
             setSearchParams({})
         }
+        db.delete(id)
     }
 
     const handleVersionSelect = (version: number) => {
