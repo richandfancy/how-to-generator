@@ -13,9 +13,7 @@ interface SidebarProps {
 export default function Sidebar({ howTos, selectedHowTo, onSelect, onDelete, onCreateNew }: SidebarProps) {
     const handleDelete = (e: React.MouseEvent, id: string) => {
         e.stopPropagation()
-        if (confirm('Are you sure you want to delete this how-to?')) {
-            onDelete(id)
-        }
+        onDelete(id)
     }
 
     return (
