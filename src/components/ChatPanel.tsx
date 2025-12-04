@@ -96,6 +96,11 @@ export default function ChatPanel({
                     })
                 })
 
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ details: response.statusText }))
+                    throw new Error(errorData.details || response.statusText || 'Generation failed')
+                }
+
                 const data = await response.json()
 
                 const assistantMessage: ChatMessage = {
@@ -138,6 +143,11 @@ export default function ChatPanel({
                     })
                 })
 
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ details: response.statusText }))
+                    throw new Error(errorData.details || response.statusText || 'Generation failed')
+                }
+
                 const data = await response.json()
 
                 const newVersion = {
@@ -167,11 +177,11 @@ export default function ChatPanel({
                 onHowToUpdated(updatedHowTo)
                 setMessages(prev => [...prev, assistantMessage])
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error:', error)
             setMessages(prev => [...prev, {
                 role: 'assistant',
-                content: 'Sorry, there was an error generating the image. Please make sure your API key is configured correctly.',
+                content: `Error: ${error.message || 'Something went wrong'}. If this persists, the request might be timing out.`,
                 timestamp: new Date().toISOString()
             }])
         }
