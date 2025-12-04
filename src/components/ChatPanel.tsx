@@ -86,7 +86,8 @@ export default function ChatPanel({
 
             if (isCreating) {
                 // Fallback for legacy creation (should not be reached if onGenerateNew is passed)
-                const response = await fetch('/api/generate', {
+                // Step 1: Generate Text
+                const textResponse = await fetch('/api/generate-text', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -96,29 +97,47 @@ export default function ChatPanel({
                     })
                 })
 
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ details: response.statusText }))
-                    throw new Error(errorData.details || response.statusText || 'Generation failed')
+                if (!textResponse.ok) {
+                    const errorData = await textResponse.json().catch(() => ({ details: textResponse.statusText }))
+                    throw new Error(errorData.details || textResponse.statusText || 'Text generation failed')
                 }
 
-                const data = await response.json()
+                const textData = await textResponse.json()
+
+                // Step 2: Generate Image
+                const imageResponse = await fetch('/api/generate-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fullPrompt: textData.fullPrompt,
+                        title: textData.title,
+                        content: textData.content
+                    })
+                })
+
+                if (!imageResponse.ok) {
+                    const errorData = await imageResponse.json().catch(() => ({ details: imageResponse.statusText }))
+                    throw new Error(errorData.details || imageResponse.statusText || 'Image generation failed')
+                }
+
+                const imageData = await imageResponse.json()
 
                 const assistantMessage: ChatMessage = {
                     role: 'assistant',
-                    content: `Created "${data.title}"! The visual has been generated. You can now refine it by chatting with me.`,
+                    content: `Created "${textData.title}"! The visual has been generated. You can now refine it by chatting with me.`,
                     timestamp: new Date().toISOString()
                 }
 
                 const newHowTo: HowTo = {
                     id: Date.now().toString(),
-                    title: data.title,
+                    title: textData.title,
                     description: input,
                     prompt: `${settings.basePrompt}, ${input}`,
-                    imageUrl: data.imageUrl,
+                    imageUrl: imageData.imageUrl,
                     versions: [{
                         version: 1,
                         prompt: `${settings.basePrompt}, ${input}`,
-                        imageUrl: data.imageUrl,
+                        imageUrl: imageData.imageUrl,
                         timestamp: new Date().toISOString()
                     }],
                     currentVersion: 1,
@@ -132,28 +151,46 @@ export default function ChatPanel({
 
             } else if (howTo) {
                 // Update existing how-to
-                const response = await fetch('/api/generate', {
+                // Step 1: Generate Text
+                const textResponse = await fetch('/api/generate-text', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         prompt: `${howTo.prompt}, ${input}`,
                         basePrompt: settings.basePrompt,
-                        format: settings.format,
-                        previousImage: howTo.imageUrl
+                        format: settings.format
                     })
                 })
 
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({ details: response.statusText }))
-                    throw new Error(errorData.details || response.statusText || 'Generation failed')
+                if (!textResponse.ok) {
+                    const errorData = await textResponse.json().catch(() => ({ details: textResponse.statusText }))
+                    throw new Error(errorData.details || textResponse.statusText || 'Text generation failed')
                 }
 
-                const data = await response.json()
+                const textData = await textResponse.json()
+
+                // Step 2: Generate Image
+                const imageResponse = await fetch('/api/generate-image', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        fullPrompt: textData.fullPrompt,
+                        title: textData.title,
+                        content: textData.content
+                    })
+                })
+
+                if (!imageResponse.ok) {
+                    const errorData = await imageResponse.json().catch(() => ({ details: imageResponse.statusText }))
+                    throw new Error(errorData.details || imageResponse.statusText || 'Image generation failed')
+                }
+
+                const imageData = await imageResponse.json()
 
                 const newVersion = {
                     version: howTo.versions.length + 1,
                     prompt: `${howTo.prompt}, ${input}`,
-                    imageUrl: data.imageUrl,
+                    imageUrl: imageData.imageUrl,
                     timestamp: new Date().toISOString(),
                     changes: input
                 }
@@ -166,7 +203,7 @@ export default function ChatPanel({
 
                 const updatedHowTo: HowTo = {
                     ...howTo,
-                    imageUrl: data.imageUrl,
+                    imageUrl: imageData.imageUrl,
                     prompt: `${howTo.prompt}, ${input}`,
                     versions: [...howTo.versions, newVersion],
                     currentVersion: newVersion.version,

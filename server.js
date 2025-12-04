@@ -181,7 +181,138 @@ const saveImage = async (dataBuffer, mimeType, extension) => {
 }
 
 
-// Generate how-to visual
+// Generate text content only (Step 1)
+app.post('/api/generate-text', async (req, res) => {
+    try {
+        const { prompt, basePrompt, format } = req.body
+
+        if (!process.env.GEMINI_API_KEY) {
+            return res.status(500).json({ error: 'GEMINI_API_KEY not configured' })
+        }
+
+        const fullPrompt = `Create a detailed, step-by-step visual how-to guide for: ${prompt}
+
+Global Instructions:
+${basePrompt}
+
+Requirements:
+- Format: ${format} printable layout
+- Include clear numbered steps
+- Use icons or illustrations for each step
+- Professional and easy to understand
+- Suitable for printing and display
+
+The visual should be a complete infographic showing all steps to complete this process.`
+
+        const textModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+
+        const textResult = await textModel.generateContent({
+            contents: [{
+                role: 'user',
+                parts: [{
+                    text: `${fullPrompt}
+
+Generate a detailed step-by-step how-to guide in the following format:
+
+TITLE: [Clear title]
+STEPS:
+1. [First step with detailed description]
+2. [Second step with detailed description]
+3. [Continue with all necessary steps]
+
+TIPS:
+- [Helpful tip 1]
+- [Helpful tip 2]
+
+Make it clear, concise, and suitable for printing.`
+                }]
+            }],
+            generationConfig: {
+                temperature: 0.7,
+                topK: 40,
+                topP: 0.95,
+                maxOutputTokens: 2048,
+            },
+        })
+
+        const textResponse = textResult.response
+        const text = textResponse.text()
+
+        // Extract title
+        const titleMatch = prompt.match(/how to (.+)/i)
+        const title = titleMatch
+            ? `How to ${titleMatch[1].charAt(0).toUpperCase() + titleMatch[1].slice(1)}`
+            : prompt.slice(0, 50)
+
+        res.json({
+            success: true,
+            title,
+            content: text,
+            fullPrompt // Return this so client can pass it to image generation
+        })
+
+    } catch (error) {
+        console.error('Text generation error:', error)
+        res.status(500).json({ error: 'Failed to generate text', details: error.message })
+    }
+})
+
+// Generate image only (Step 2)
+app.post('/api/generate-image', async (req, res) => {
+    try {
+        const { fullPrompt, title, content } = req.body
+
+        if (!process.env.GEMINI_API_KEY) {
+            return res.status(500).json({ error: 'GEMINI_API_KEY not configured' })
+        }
+
+        const imageModel = genAI.getGenerativeModel({ model: 'gemini-3-pro-image-preview' })
+        const imageStartTime = Date.now()
+
+        const imageResult = await imageModel.generateContent(fullPrompt)
+        const imageResponse = imageResult.response
+        const imageTime = ((Date.now() - imageStartTime) / 1000).toFixed(2)
+
+        let imageUrl = null
+        let fileSize = '0 KB'
+
+        if (imageResponse.candidates &&
+            imageResponse.candidates[0].content &&
+            imageResponse.candidates[0].content.parts &&
+            imageResponse.candidates[0].content.parts[0].inlineData) {
+
+            const part = imageResponse.candidates[0].content.parts[0]
+            const data = part.inlineData.data
+            const mimeType = part.inlineData.mimeType
+            const ext = mimeType.split('/')[1] || 'png'
+
+            const result = await saveImage(Buffer.from(data, 'base64'), mimeType, ext)
+            imageUrl = result.url
+            fileSize = result.size
+        } else {
+            // Fallback to SVG
+            const svg = generateHowToSVG(content || '', title || 'How-To', '')
+            const result = await saveImage(Buffer.from(svg), 'image/svg+xml', 'svg')
+            imageUrl = result.url
+            fileSize = result.size
+        }
+
+        res.json({
+            success: true,
+            imageUrl,
+            debug: {
+                imageTime: `${imageTime}s`,
+                fileSize
+            }
+        })
+
+    } catch (error) {
+        console.error('Image generation error:', error)
+        res.status(500).json({ error: 'Failed to generate image', details: error.message })
+    }
+})
+
+// Generate how-to visual (Legacy - Parallel)
 app.post('/api/generate', async (req, res) => {
     const requestId = Date.now()
     console.log('\n' + '='.repeat(60))

@@ -161,8 +161,10 @@ function App() {
         setIsCreating(false)
 
         try {
-            // 4. Call API in background
-            const response = await fetch('/api/generate', {
+            // 4. Call API (Split into two steps to avoid timeout)
+
+            // Step 1: Generate Text
+            const textResponse = await fetch('/api/generate-text', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -172,27 +174,53 @@ function App() {
                 })
             })
 
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ details: response.statusText }))
-                throw new Error(errorData.details || response.statusText || 'Generation failed')
+            if (!textResponse.ok) {
+                const errorData = await textResponse.json().catch(() => ({ details: textResponse.statusText }))
+                throw new Error(errorData.details || textResponse.statusText || 'Text generation failed')
             }
 
-            const data = await response.json()
+            const textData = await textResponse.json()
+
+            // Update title immediately
+            setHowTos(prev => prev.map(h => {
+                if (h.id === tempId) {
+                    return { ...h, title: textData.title, description: 'Generating visual...' }
+                }
+                return h
+            }))
+
+            // Step 2: Generate Image
+            const imageResponse = await fetch('/api/generate-image', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    fullPrompt: textData.fullPrompt,
+                    title: textData.title,
+                    content: textData.content
+                })
+            })
+
+            if (!imageResponse.ok) {
+                const errorData = await imageResponse.json().catch(() => ({ details: imageResponse.statusText }))
+                throw new Error(errorData.details || imageResponse.statusText || 'Image generation failed')
+            }
+
+            const imageData = await imageResponse.json()
 
             // 5. Update placeholder with real data
             const assistantMessage: ChatMessage = {
                 role: 'assistant',
-                content: `Created "${data.title}"! The visual has been generated.`,
+                content: `Created "${textData.title}"! The visual has been generated.`,
                 timestamp: new Date().toISOString()
             }
 
             const updateData = {
-                title: data.title,
-                imageUrl: data.imageUrl,
+                title: textData.title,
+                imageUrl: imageData.imageUrl,
                 versions: [{
                     version: 1,
                     prompt: `${basePrompt}, ${prompt} `,
-                    imageUrl: data.imageUrl,
+                    imageUrl: imageData.imageUrl,
                     timestamp: new Date().toISOString()
                 }],
                 currentVersion: 1,
