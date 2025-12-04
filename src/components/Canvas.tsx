@@ -6,9 +6,10 @@ import './Canvas.css'
 interface CanvasProps {
     howTo: HowTo | null
     settings: AppSettings
+    onVersionSelect?: (version: number) => void
 }
 
-export default function Canvas({ howTo, settings }: CanvasProps) {
+export default function Canvas({ howTo, settings, onVersionSelect }: CanvasProps) {
     const [zoom, setZoom] = useState(100)
     const [showVersions, setShowVersions] = useState(false)
 
@@ -152,6 +153,8 @@ export default function Canvas({ howTo, settings }: CanvasProps) {
                                 <div
                                     key={version.version}
                                     className={`version-item ${version.version === howTo.currentVersion ? 'active' : ''}`}
+                                    onClick={() => onVersionSelect && onVersionSelect(version.version)}
+                                    style={{ cursor: 'pointer' }}
                                 >
                                     <div className="version-info">
                                         <span className="version-number">v{version.version}</span>
