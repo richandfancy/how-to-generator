@@ -130,6 +130,56 @@ function generateHowToSVG(content, title, basePrompt) {
     return svg
 }
 
+// Helper to upload to Supabase or Local
+const saveImage = async (dataBuffer, mimeType, extension) => {
+    const filename = `howto_${Date.now()}.${extension}`
+
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+        console.log('☁️ Uploading to Supabase Storage...')
+        const { data, error } = await supabase.storage
+            .from('images')
+            .upload(filename, dataBuffer, {
+                contentType: mimeType,
+                upsert: false
+            })
+
+        if (error) {
+            console.error('Supabase upload error:', error)
+            console.log('⚠️ Falling back to Data URI...')
+            return {
+                url: `data:${mimeType};base64,${dataBuffer.toString('base64')}`,
+                size: (dataBuffer.length / 1024).toFixed(2) + ' KB',
+                filename: null
+            }
+        }
+
+        const { data: publicData } = supabase.storage
+            .from('images')
+            .getPublicUrl(filename)
+
+        return {
+            url: publicData.publicUrl,
+            size: (dataBuffer.length / 1024).toFixed(2) + ' KB',
+            filename
+        }
+    } else {
+        console.log('💾 Saving to local storage (Supabase not configured)...')
+        // Ensure uploads directory exists
+        const uploadsDir = path.join(__dirname, 'uploads')
+        if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true })
+        }
+
+        const filepath = path.join(uploadsDir, filename)
+        fs.writeFileSync(filepath, dataBuffer)
+        return {
+            url: `/uploads/${filename}`,
+            size: (fs.statSync(filepath).size / 1024).toFixed(2) + ' KB',
+            filename
+        }
+    }
+}
+
 
 // Generate how-to visual
 app.post('/api/generate', async (req, res) => {
