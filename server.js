@@ -178,17 +178,22 @@ Requirements:
 
 The visual should be a complete infographic showing all steps to complete this process.`
 
-        console.log('Generating how-to content with prompt:', fullPrompt)
+        console.log('🚀 Starting parallel generation...')
 
-        // 1. Generate Text Content (Gemini 2.5 Flash)
-        console.log('🤖 Generating text with Gemini 2.5 Flash...')
         const textModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+        const imageModel = genAI.getGenerativeModel({ model: 'gemini-3-pro-image-preview' })
+        const imageStartTime = Date.now()
 
-        const textResult = await textModel.generateContent({
-            contents: [{
-                role: 'user',
-                parts: [{
-                    text: `${fullPrompt}
+        // Run both generations in parallel
+        const [textResult, imageResult] = await Promise.all([
+            // 1. Generate Text
+            (async () => {
+                console.log('🤖 Generating text with Gemini 2.5 Flash...')
+                return textModel.generateContent({
+                    contents: [{
+                        role: 'user',
+                        parts: [{
+                            text: `${fullPrompt}
 
 Generate a detailed step-by-step how-to guide in the following format:
 
@@ -203,78 +208,35 @@ TIPS:
 - [Helpful tip 2]
 
 Make it clear, concise, and suitable for printing.`
-                }]
-            }],
-            generationConfig: {
-                temperature: 0.7,
-                topK: 40,
-                topP: 0.95,
-                maxOutputTokens: 2048,
-            },
-        })
+                        }]
+                    }],
+                    generationConfig: {
+                        temperature: 0.7,
+                        topK: 40,
+                        topP: 0.95,
+                        maxOutputTokens: 2048,
+                    },
+                })
+            })(),
 
+            // 2. Generate Visual
+            (async () => {
+                console.log('🎨 Generating visual with Gemini 3 Pro...')
+                return imageModel.generateContent(fullPrompt)
+            })()
+        ])
+
+        // Process Text Result
         const textResponse = textResult.response
         const text = textResponse.text()
-
         console.log('✓ Text generated')
 
-        // 2. Generate Visual (Gemini 3 Pro / Nano Banana Pro)
-        console.log('🎨 Generating visual with Gemini 3 Pro (Nano Banana Pro)...')
-        console.log('   Model: gemini-3-pro-image-preview')
-
-        const imageModel = genAI.getGenerativeModel({ model: 'gemini-3-pro-image-preview' })
-        const imageStartTime = Date.now()
-
-        const imageResult = await imageModel.generateContent(fullPrompt)
+        // Process Image Result
         const imageResponse = imageResult.response
         const imageTime = ((Date.now() - imageStartTime) / 1000).toFixed(2)
 
         let imageUrl = null
         let fileSize = '0 KB'
-
-        // Helper to upload to Supabase or Local
-        const saveImage = async (dataBuffer, mimeType, extension) => {
-            const filename = `howto_${Date.now()}.${extension}`
-
-            if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
-                console.log('☁️ Uploading to Supabase Storage...')
-                const { data, error } = await supabase.storage
-                    .from('images')
-                    .upload(filename, dataBuffer, {
-                        contentType: mimeType,
-                        upsert: false
-                    })
-
-                if (error) {
-                    console.error('Supabase upload error:', error)
-                    console.log('⚠️ Falling back to Data URI...')
-                    return {
-                        url: `data:${mimeType};base64,${dataBuffer.toString('base64')}`,
-                        size: (dataBuffer.length / 1024).toFixed(2) + ' KB',
-                        filename: null
-                    }
-                }
-
-                const { data: publicData } = supabase.storage
-                    .from('images')
-                    .getPublicUrl(filename)
-
-                return {
-                    url: publicData.publicUrl,
-                    size: (dataBuffer.length / 1024).toFixed(2) + ' KB',
-                    filename
-                }
-            } else {
-                console.log('💾 Saving to local storage (Supabase not configured)...')
-                const filepath = path.join(__dirname, 'uploads', filename)
-                fs.writeFileSync(filepath, dataBuffer)
-                return {
-                    url: `/uploads/${filename}`,
-                    size: (fs.statSync(filepath).size / 1024).toFixed(2) + ' KB',
-                    filename
-                }
-            }
-        }
 
         if (imageResponse.candidates &&
             imageResponse.candidates[0].content &&
