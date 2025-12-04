@@ -172,6 +172,11 @@ function App() {
                 })
             })
 
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ details: response.statusText }))
+                throw new Error(errorData.details || response.statusText || 'Generation failed')
+            }
+
             const data = await response.json()
 
             // 5. Update placeholder with real data
@@ -204,20 +209,43 @@ function App() {
 
             setSelectedHowTo(prev => {
                 if (prev?.id === tempId) {
-                    // We need to cast prev to HowTo to satisfy TS, though the check implies it exists
                     return { ...prev!, ...updateData }
                 }
                 return prev
             })
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('Generation error:', error)
+            const errorMessage: ChatMessage = {
+                role: 'assistant',
+                content: `Error: ${error.message || 'Something went wrong'}. If this persists, the request might be timing out (Vercel limit is 10s).`,
+                timestamp: new Date().toISOString()
+            }
+
             setHowTos(prev => prev.map(h => {
                 if (h.id === tempId) {
-                    return { ...h, status: 'error', title: 'Generation Failed' }
+                    return {
+                        ...h,
+                        status: 'error',
+                        title: 'Generation Failed',
+                        messages: [...h.messages, errorMessage]
+                    }
                 }
                 return h
             }))
+
+            // Update selected if it's the one failing
+            setSelectedHowTo(prev => {
+                if (prev?.id === tempId) {
+                    return {
+                        ...prev!,
+                        status: 'error',
+                        title: 'Generation Failed',
+                        messages: [...prev!.messages, errorMessage]
+                    }
+                }
+                return prev
+            })
         }
     }
 
