@@ -7,15 +7,32 @@ interface CanvasProps {
     howTo: HowTo | null
     settings: AppSettings
     onVersionSelect?: (version: number) => void
+    onUpdateTitle?: (id: string, newTitle: string) => void
 }
 
-export default function Canvas({ howTo, settings, onVersionSelect }: CanvasProps) {
+export default function Canvas({ howTo, settings, onVersionSelect, onUpdateTitle }: CanvasProps) {
     const [zoom, setZoom] = useState(100)
     const [showVersions, setShowVersions] = useState(false)
+    const [isEditingTitle, setIsEditingTitle] = useState(false)
+    const [titleInput, setTitleInput] = useState('')
 
     const handleZoomIn = () => setZoom(Math.min(zoom + 10, 200))
     const handleZoomOut = () => setZoom(Math.max(zoom - 10, 50))
     const handleResetZoom = () => setZoom(100)
+
+    const startEditingTitle = () => {
+        if (howTo) {
+            setTitleInput(howTo.title)
+            setIsEditingTitle(true)
+        }
+    }
+
+    const saveTitle = () => {
+        if (howTo && titleInput.trim() && titleInput !== howTo.title) {
+            onUpdateTitle?.(howTo.id, titleInput.trim())
+        }
+        setIsEditingTitle(false)
+    }
 
     const handleDownload = () => {
         if (!howTo?.imageUrl) return
@@ -37,7 +54,27 @@ export default function Canvas({ howTo, settings, onVersionSelect }: CanvasProps
                 <div className="canvas-info">
                     {howTo && (
                         <>
-                            <h2 className="canvas-title truncate">{howTo.title}</h2>
+                            {isEditingTitle ? (
+                                <input
+                                    type="text"
+                                    className="canvas-title-input"
+                                    value={titleInput}
+                                    onChange={(e) => setTitleInput(e.target.value)}
+                                    onBlur={saveTitle}
+                                    onKeyDown={(e) => e.key === 'Enter' && saveTitle()}
+                                    autoFocus
+                                />
+                            ) : (
+                                <h2
+                                    className="canvas-title truncate"
+                                    onClick={startEditingTitle}
+                                    title="Click to edit"
+                                    style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+                                >
+                                    {howTo.title}
+                                    <span style={{ fontSize: '0.8em', opacity: 0.5 }}>✎</span>
+                                </h2>
+                            )}
                             <div className="canvas-version-badge">
                                 Version {howTo.currentVersion} of {howTo.versions.length}
                             </div>

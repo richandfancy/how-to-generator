@@ -343,6 +343,14 @@ function App() {
         }
     }
 
+    const handleUpdateTitle = (id: string, newTitle: string) => {
+        const target = howTos.find(h => h.id === id)
+        if (target) {
+            const updated = { ...target, title: newTitle }
+            handleUpdateHowTo(updated)
+        }
+    }
+
     return (
         <div className={`app ${isMobile ? 'is-mobile' : ''}`}>
             {/* Header */}
@@ -379,6 +387,7 @@ function App() {
                         howTo={selectedHowTo}
                         settings={settings}
                         onVersionSelect={handleVersionSelect}
+                        onUpdateTitle={handleUpdateTitle}
                     />
                 </div>
 
