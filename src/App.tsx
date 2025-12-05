@@ -265,14 +265,19 @@ function App() {
                 timestamp: new Date().toISOString()
             }
 
+            const failedHowTo: HowTo = {
+                ...placeholderHowTo,
+                status: 'error',
+                title: 'Generation Failed',
+                messages: [userMessage, errorMessage],
+                // Ensure we keep the ID so it updates the existing placeholder
+                id: tempId
+            }
+
+            // Update local state
             setHowTos(prev => prev.map(h => {
                 if (h.id === tempId) {
-                    return {
-                        ...h,
-                        status: 'error',
-                        title: 'Generation Failed',
-                        messages: [...h.messages, errorMessage]
-                    }
+                    return failedHowTo
                 }
                 return h
             }))
@@ -280,15 +285,13 @@ function App() {
             // Update selected if it's the one failing
             setSelectedHowTo(prev => {
                 if (prev?.id === tempId) {
-                    return {
-                        ...prev!,
-                        status: 'error',
-                        title: 'Generation Failed',
-                        messages: [...prev!.messages, errorMessage]
-                    }
+                    return failedHowTo
                 }
                 return prev
             })
+
+            // Save the failure state to DB so it persists
+            db.save(failedHowTo)
         }
     }
 
