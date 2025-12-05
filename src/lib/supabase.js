@@ -8,20 +8,16 @@ if (typeof process !== 'undefined' && typeof window === 'undefined') {
 
 // Helper to get environment variables in both Vite (client) and Node (server)
 const getEnvVar = (key) => {
-    // 1. Try Vite's import.meta.env (Client-side)
-    // IMPORTANT: specific access is needed for bundlers to statically replace these
+    // 1. Client-side (Vite) - explicitly check VITE_ prefixed vars
     if (typeof import.meta !== 'undefined' && import.meta.env) {
-        if (key === 'SUPABASE_URL') {
-            return import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL
-        }
-        if (key === 'SUPABASE_ANON_KEY') {
-            return import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY
-        }
+        if (key === 'SUPABASE_URL') return import.meta.env.VITE_SUPABASE_URL
+        if (key === 'SUPABASE_ANON_KEY') return import.meta.env.VITE_SUPABASE_ANON_KEY
     }
 
-    // 2. Try Node's process.env (Server-side)
+    // 2. Server-side (Node) - check process.env
     if (typeof process !== 'undefined' && process.env) {
-        return process.env[key]
+        // Check for both prefixed and non-prefixed in Node
+        return process.env[key] || process.env[`VITE_${key}`]
     }
 
     return undefined
