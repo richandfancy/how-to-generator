@@ -9,16 +9,19 @@ if (typeof process !== 'undefined' && typeof window === 'undefined') {
 // Helper to get environment variables in both Vite (client) and Node (server)
 const getEnvVar = (key) => {
     // 1. Try Vite's import.meta.env (Client-side)
-    // Note: Vite requires VITE_ prefix for client-side variables
+    // IMPORTANT: specific access is needed for bundlers to statically replace these
     if (typeof import.meta !== 'undefined' && import.meta.env) {
-        const viteKey = `VITE_${key}`
-        if (import.meta.env[viteKey]) return import.meta.env[viteKey]
-        if (import.meta.env[key]) return import.meta.env[key] // Fallback
+        if (key === 'SUPABASE_URL') {
+            return import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL
+        }
+        if (key === 'SUPABASE_ANON_KEY') {
+            return import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY
+        }
     }
 
     // 2. Try Node's process.env (Server-side)
     if (typeof process !== 'undefined' && process.env) {
-        if (process.env[key]) return process.env[key]
+        return process.env[key]
     }
 
     return undefined
@@ -26,6 +29,10 @@ const getEnvVar = (key) => {
 
 const supabaseUrl = getEnvVar('SUPABASE_URL')
 const supabaseKey = getEnvVar('SUPABASE_ANON_KEY')
+
+// Debug logging for production troubleshooting
+if (!supabaseUrl) console.warn('Supabase URL missing')
+if (!supabaseKey) console.warn('Supabase Key missing')
 
 if (!supabaseUrl || !supabaseKey) {
     console.warn('⚠️ Supabase credentials not found. Database operations will fail.')
