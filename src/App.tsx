@@ -184,7 +184,8 @@ function App() {
 
             if (!textResponse.ok) {
                 const errorData = await textResponse.json().catch(() => ({ details: textResponse.statusText }))
-                throw new Error(errorData.details || textResponse.statusText || 'Text generation failed')
+                const specificError = errorData.error || errorData.details || textResponse.statusText
+                throw new Error(specificError || 'Text generation failed')
             }
 
             const textData = await textResponse.json()
@@ -210,7 +211,8 @@ function App() {
 
             if (!imageResponse.ok) {
                 const errorData = await imageResponse.json().catch(() => ({ details: imageResponse.statusText }))
-                throw new Error(errorData.details || imageResponse.statusText || 'Image generation failed')
+                const specificError = errorData.error || errorData.details || imageResponse.statusText
+                throw new Error(specificError || 'Image generation failed')
             }
 
             const imageData = await imageResponse.json()

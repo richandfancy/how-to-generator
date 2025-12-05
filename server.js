@@ -26,7 +26,16 @@ if (!process.env.VERCEL && !fs.existsSync(path.join(__dirname, 'uploads'))) {
     fs.mkdirSync(path.join(__dirname, 'uploads'))
 }
 
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '')
+// Lazy initialization to ensure we pick up the env var
+const getGenAI = () => {
+    const key = process.env.GEMINI_API_KEY
+    if (!key) {
+        console.error('❌ GEMINI_API_KEY is missing in process.env')
+    } else {
+        // console.log('✓ GEMINI_API_KEY found') // Reduced log spam
+    }
+    return new GoogleGenerativeAI(key || '')
+}
 
 // Helper function to escape XML characters
 function escapeXML(unsafe) {
@@ -204,7 +213,7 @@ Requirements:
 
 The visual should be a complete infographic showing all steps to complete this process.`
 
-        const textModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
+        const textModel = getGenAI().getGenerativeModel({ model: 'gemini-2.5-flash' })
 
         const textResult = await textModel.generateContent({
             contents: [{
@@ -266,7 +275,7 @@ app.post('/api/generate-image', async (req, res) => {
             return res.status(500).json({ error: 'GEMINI_API_KEY not configured' })
         }
 
-        const imageModel = genAI.getGenerativeModel({ model: 'gemini-3-pro-image-preview' })
+        const imageModel = getGenAI().getGenerativeModel({ model: 'gemini-3-pro-image-preview' })
         const imageStartTime = Date.now()
 
         const imageResult = await imageModel.generateContent(fullPrompt)
@@ -361,8 +370,8 @@ The visual should be a complete infographic showing all steps to complete this p
 
         console.log('🚀 Starting parallel generation...')
 
-        const textModel = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
-        const imageModel = genAI.getGenerativeModel({ model: 'gemini-3-pro-image-preview' })
+        const textModel = getGenAI().getGenerativeModel({ model: 'gemini-2.5-flash' })
+        const imageModel = getGenAI().getGenerativeModel({ model: 'gemini-3-pro-image-preview' })
         const imageStartTime = Date.now()
 
         // Run both generations in parallel
