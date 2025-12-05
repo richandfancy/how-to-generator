@@ -175,7 +175,29 @@ app.post('/api/generate-image', async (req, res) => {
         res.status(500).json({ error: 'Failed to generate image', details: error.message })
     }
 })
+// Generate SVG only (Step 3 - Fallback)
+app.post('/api/generate-svg', async (req, res) => {
+    try {
+        const { title, content, basePrompt } = req.body
 
+        // Generate SVG using the server-side helper
+        const svg = generateHowToSVG(content || '', title || 'How-To', basePrompt || '')
+
+        // Save using existing logic (Supabase or Local)
+        const result = await saveImage(Buffer.from(svg), 'image/svg+xml', 'svg')
+
+        res.json({
+            success: true,
+            imageUrl: result.url,
+            fileSize: result.size,
+            isFallback: true
+        })
+
+    } catch (error) {
+        console.error('SVG generation error:', error)
+        res.status(500).json({ error: 'Failed to generate SVG', details: error.message })
+    }
+})
 // Generate how-to visual (Legacy - Parallel)
 app.post('/api/generate', async (req, res) => {
     const requestId = Date.now()

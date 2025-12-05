@@ -152,7 +152,7 @@ function App() {
             title: 'Generating...',
             description: prompt,
             prompt: `${basePrompt}, ${prompt} `,
-            imageUrl: null,
+            imageUrl: null, // Loading state
             versions: [],
             currentVersion: 0,
             createdAt: new Date().toISOString(),
@@ -163,23 +163,20 @@ function App() {
 
         // 2. Add to list immediately
         setHowTos(prev => [placeholderHowTo, ...prev])
-
-        // 3. Select the new item and exit creation mode so user can refine it
         setSelectedHowTo(placeholderHowTo)
         setIsCreating(false)
 
-        try {
-            // 4. Call API (Split into two steps to avoid timeout)
+        // Variables valid across try/catch
+        let generatedTitle = 'Generation Failed'
+        let generatedContent = ''
+        let fullPromptForImage = ''
 
+        try {
             // Step 1: Generate Text
             const textResponse = await fetch('/api/generate-text', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    prompt,
-                    basePrompt,
-                    format
-                })
+                body: JSON.stringify({ prompt, basePrompt, format })
             })
 
             if (!textResponse.ok) {
@@ -189,12 +186,13 @@ function App() {
             }
 
             const textData = await textResponse.json()
+            generatedTitle = textData.title
+            generatedContent = textData.content
+            fullPromptForImage = textData.fullPrompt
 
             // Update title immediately
             setHowTos(prev => prev.map(h => {
-                if (h.id === tempId) {
-                    return { ...h, title: textData.title, description: 'Generating visual...' }
-                }
+                if (h.id === tempId) return { ...h, title: generatedTitle, description: 'Generating visual...' }
                 return h
             }))
 
@@ -203,9 +201,9 @@ function App() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    fullPrompt: textData.fullPrompt,
-                    title: textData.title,
-                    content: textData.content
+                    fullPrompt: fullPromptForImage,
+                    title: generatedTitle,
+                    content: generatedContent
                 })
             })
 
@@ -217,15 +215,15 @@ function App() {
 
             const imageData = await imageResponse.json()
 
-            // 5. Update placeholder with real data
+            // Standard Success Path
             const assistantMessage: ChatMessage = {
                 role: 'assistant',
-                content: `Created "${textData.title}"! The visual has been generated.`,
+                content: `Created "${generatedTitle}"! The visual has been generated.`,
                 timestamp: new Date().toISOString()
             }
 
             const updateData = {
-                title: textData.title,
+                title: generatedTitle,
                 imageUrl: imageData.imageUrl,
                 versions: [{
                     version: 1,
@@ -238,61 +236,80 @@ function App() {
                 messages: [userMessage, assistantMessage]
             }
 
-            // Save to DB
-            const completedHowTo: HowTo = {
-                ...placeholderHowTo,
-                ...updateData
-            }
+            const completedHowTo: HowTo = { ...placeholderHowTo, ...updateData }
             db.save(completedHowTo)
 
-            setHowTos(prev => prev.map(h => {
-                if (h.id === tempId) {
-                    return completedHowTo
-                }
-                return h
-            }))
-
-            setSelectedHowTo(prev => {
-                if (prev?.id === tempId) {
-                    return completedHowTo
-                }
-                return prev
-            })
+            setHowTos(prev => prev.map(h => h.id === tempId ? completedHowTo : h))
+            setSelectedHowTo(prev => prev?.id === tempId ? completedHowTo : prev)
 
         } catch (error: any) {
             console.error('Generation error:', error)
+
+            // FALLBACK LOGIC
+            if (generatedContent && generatedTitle) {
+                try {
+                    console.log('⚠️ Attempting SVG fallback...')
+                    const fallbackResponse = await fetch('/api/generate-svg', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            title: generatedTitle,
+                            content: generatedContent,
+                            basePrompt
+                        })
+                    })
+
+                    if (fallbackResponse.ok) {
+                        const fallbackData = await fallbackResponse.json()
+
+                        const fallbackMessage: ChatMessage = {
+                            role: 'assistant',
+                            content: `I created a text-based visual for "${generatedTitle}" because the AI image generation timed out (server busy).`,
+                            timestamp: new Date().toISOString()
+                        }
+
+                        const fallbackHowTo: HowTo = {
+                            ...placeholderHowTo,
+                            title: generatedTitle,
+                            imageUrl: fallbackData.imageUrl,
+                            versions: [{
+                                version: 1,
+                                prompt: `${basePrompt}, ${prompt} (Fallback)`,
+                                imageUrl: fallbackData.imageUrl,
+                                timestamp: new Date().toISOString()
+                            }],
+                            currentVersion: 1,
+                            status: 'completed' as const,
+                            messages: [userMessage, fallbackMessage]
+                        }
+
+                        db.save(fallbackHowTo)
+                        setHowTos(prev => prev.map(h => h.id === tempId ? fallbackHowTo : h))
+                        setSelectedHowTo(prev => prev?.id === tempId ? fallbackHowTo : prev)
+                        return // Exit function successfull with fallback
+                    }
+                } catch (fallbackError) {
+                    console.error('Fallback also failed:', fallbackError)
+                }
+            }
+
+            // Final Error State (if normal path AND fallback failed)
             const errorMessage: ChatMessage = {
                 role: 'assistant',
-                content: `Error: ${error.message || 'Something went wrong'}. If this persists, the request might be timing out (Vercel limit is 10s).`,
+                content: `Error: ${error.message || 'Something went wrong'}.`,
                 timestamp: new Date().toISOString()
             }
 
             const failedHowTo: HowTo = {
                 ...placeholderHowTo,
                 status: 'error',
-                title: 'Generation Failed',
+                title: generatedTitle !== 'Generation Failed' ? generatedTitle : 'Generation Failed',
                 messages: [userMessage, errorMessage],
-                // Ensure we keep the ID so it updates the existing placeholder
                 id: tempId
             }
 
-            // Update local state
-            setHowTos(prev => prev.map(h => {
-                if (h.id === tempId) {
-                    return failedHowTo
-                }
-                return h
-            }))
-
-            // Update selected if it's the one failing
-            setSelectedHowTo(prev => {
-                if (prev?.id === tempId) {
-                    return failedHowTo
-                }
-                return prev
-            })
-
-            // Save the failure state to DB so it persists
+            setHowTos(prev => prev.map(h => h.id === tempId ? failedHowTo : h))
+            setSelectedHowTo(prev => prev?.id === tempId ? failedHowTo : prev)
             db.save(failedHowTo)
         }
     }
