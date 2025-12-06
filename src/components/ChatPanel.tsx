@@ -25,7 +25,24 @@ export default function ChatPanel({
     const [messages, setMessages] = useState<ChatMessage[]>([])
     const [input, setInput] = useState('')
     const [isLoading, setIsLoading] = useState(false)
+    const [timer, setTimer] = useState(0)
+    const [loadingStatus, setLoadingStatus] = useState('Thinking...')
     const messagesEndRef = useRef<HTMLDivElement>(null)
+    const timerRef = useRef<NodeJS.Timeout | null>(null)
+
+    useEffect(() => {
+        if (isLoading) {
+            setTimer(0)
+            timerRef.current = setInterval(() => {
+                setTimer(t => t + 0.1)
+            }, 100)
+        } else {
+            if (timerRef.current) clearInterval(timerRef.current)
+        }
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current)
+        }
+    }, [isLoading])
 
     // Auto-scroll to bottom when messages change
     useEffect(() => {
@@ -68,6 +85,7 @@ export default function ChatPanel({
         setMessages(currentMessages)
         setInput('')
         setIsLoading(true)
+        setLoadingStatus('Initializing...')
 
         try {
             if (isCreating && onGenerateNew) {
@@ -87,6 +105,7 @@ export default function ChatPanel({
             if (isCreating) {
                 // Fallback for legacy creation (should not be reached if onGenerateNew is passed)
                 // Step 1: Generate Text
+                setLoadingStatus('Drafting content structure...')
                 const textResponse = await fetch('/api/generate-text', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -105,6 +124,7 @@ export default function ChatPanel({
                 const textData = await textResponse.json()
 
                 // Step 2: Generate Image
+                setLoadingStatus('Designing visual (this takes ~15s)...')
                 const imageResponse = await fetch('/api/edge-generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -121,6 +141,8 @@ export default function ChatPanel({
                 }
 
                 const imageData = await imageResponse.json()
+                setLoadingStatus('Finalizing...')
+
 
                 const assistantMessage: ChatMessage = {
                     role: 'assistant',
@@ -152,6 +174,7 @@ export default function ChatPanel({
             } else if (howTo) {
                 // Update existing how-to
                 // Step 1: Generate Text
+                setLoadingStatus('Analyzing request...')
                 const textResponse = await fetch('/api/generate-text', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -170,6 +193,7 @@ export default function ChatPanel({
                 const textData = await textResponse.json()
 
                 // Step 2: Generate Image
+                setLoadingStatus('Updating visual (using Edge runtime)...')
                 const imageResponse = await fetch('/api/edge-generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -264,10 +288,17 @@ export default function ChatPanel({
                 {isLoading && (
                     <div className="chat-message assistant">
                         <div className="message-content">
-                            <div className="typing-indicator">
-                                <span></span>
-                                <span></span>
-                                <span></span>
+                            <div className="flex flex-col gap-2">
+                                <div className="typing-indicator">
+                                    <span></span>
+                                    <span></span>
+                                    <span></span>
+                                </div>
+                                <div className="text-xs text-muted-foreground flex items-center gap-2 mt-1">
+                                    <span className="font-mono">{timer.toFixed(1)}s</span>
+                                    <span>•</span>
+                                    <span>{loadingStatus}</span>
+                                </div>
                             </div>
                         </div>
                     </div>

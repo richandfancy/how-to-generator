@@ -304,13 +304,14 @@ function App() {
                 ...placeholderHowTo,
                 status: 'error',
                 title: generatedTitle !== 'Generation Failed' ? generatedTitle : 'Generation Failed',
+                description: prompt, // Ensure description is kept
                 messages: [userMessage, errorMessage],
                 id: tempId
             }
 
             setHowTos(prev => prev.map(h => h.id === tempId ? failedHowTo : h))
             setSelectedHowTo(prev => prev?.id === tempId ? failedHowTo : prev)
-            db.save(failedHowTo)
+            db.save(failedHowTo) // Persist the error state!
         }
     }
 
