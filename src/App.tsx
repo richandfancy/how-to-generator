@@ -401,6 +401,7 @@ function App() {
                         onSelect={handleSelectHowTo}
                         onDelete={handleDeleteHowTo}
                         onCreateNew={handleCreateNew}
+                        onUpdateTitle={handleUpdateTitle}
                     />
                 </div>
 

@@ -97,6 +97,33 @@
     font-size: var(--font-size-base);
     font-weight: 600;
     flex: 1;
+    cursor: text;
+}
+
+.sidebar-item-title:hover {
+    text-decoration: underline;
+    text-decoration-style: dotted;
+    text-decoration-color: var(--color-text-muted);
+}
+
+.sidebar-item-input {
+    flex: 1;
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    font-family: inherit;
+    color: var(--color-text-primary);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: 0 var(--spacing-xs);
+    margin: 0;
+    outline: none;
+    min-width: 0;
+}
+
+.sidebar-item-input:focus {
+    border-color: var(--color-accent-primary);
+    background: var(--color-bg-primary);
 }
 
 .sidebar-item-description {

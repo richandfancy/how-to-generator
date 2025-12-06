@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { FileText, Trash2, Clock, Plus, Loader } from 'lucide-react'
 import { HowTo } from '../types'
 import { BUILD_TIMESTAMP } from '../version'
@@ -9,12 +10,38 @@ interface SidebarProps {
     onSelect: (howTo: HowTo) => void
     onDelete: (id: string) => void
     onCreateNew: () => void
+    onUpdateTitle: (id: string, newTitle: string) => void
 }
 
-export default function Sidebar({ howTos, selectedHowTo, onSelect, onDelete, onCreateNew }: SidebarProps) {
+export default function Sidebar({ howTos, selectedHowTo, onSelect, onDelete, onCreateNew, onUpdateTitle }: SidebarProps) {
+    const [editingId, setEditingId] = useState<string | null>(null)
+    const [editTitle, setEditTitle] = useState('')
+
     const handleDelete = (e: React.MouseEvent, id: string) => {
         e.stopPropagation()
         onDelete(id)
+    }
+
+    const handleStartEdit = (e: React.MouseEvent, howTo: HowTo) => {
+        e.stopPropagation()
+        setEditingId(howTo.id)
+        setEditTitle(howTo.title)
+    }
+
+    const handleSaveEdit = (e: React.MouseEvent | React.KeyboardEvent | React.FocusEvent) => {
+        e.stopPropagation()
+        if (editingId && editTitle.trim()) {
+            onUpdateTitle(editingId, editTitle.trim())
+        }
+        setEditingId(null)
+    }
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            handleSaveEdit(e)
+        } else if (e.key === 'Escape') {
+            setEditingId(null)
+        }
     }
 
     return (
@@ -49,9 +76,26 @@ export default function Sidebar({ howTos, selectedHowTo, onSelect, onDelete, onC
                             <div className="sidebar-item-content">
                                 <div className="sidebar-item-header">
                                     <FileText size={16} />
-                                    <h3 className="sidebar-item-title truncate">
-                                        {howTo.status === 'generating' ? 'Generating...' : howTo.title}
-                                    </h3>
+                                    {editingId === howTo.id ? (
+                                        <input
+                                            type="text"
+                                            className="sidebar-item-input"
+                                            value={editTitle}
+                                            onChange={(e) => setEditTitle(e.target.value)}
+                                            onBlur={handleSaveEdit}
+                                            onKeyDown={handleKeyDown}
+                                            onClick={(e) => e.stopPropagation()}
+                                            autoFocus
+                                        />
+                                    ) : (
+                                        <h3
+                                            className="sidebar-item-title truncate"
+                                            onClick={(e) => handleStartEdit(e, howTo)}
+                                            title="Click to edit title"
+                                        >
+                                            {howTo.status === 'generating' ? 'Generating...' : howTo.title}
+                                        </h3>
+                                    )}
                                 </div>
                                 <p className="sidebar-item-description truncate">
                                     {howTo.description}
