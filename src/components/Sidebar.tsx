@@ -1,5 +1,6 @@
 import { FileText, Trash2, Clock, Plus, Loader } from 'lucide-react'
 import { HowTo } from '../types'
+import { BUILD_TIMESTAMP } from '../version'
 import './Sidebar.css'
 
 interface SidebarProps {
@@ -85,6 +86,11 @@ export default function Sidebar({ howTos, selectedHowTo, onSelect, onDelete, onC
                     ))
                 )}
             </div>
-        </div>
+
+
+            <div className="sidebar-footer" style={{ padding: '1rem', fontSize: '10px', color: 'var(--text-muted)', borderTop: '1px solid var(--border-color)', textAlign: 'center' }}>
+                v{BUILD_TIMESTAMP}
+            </div>
+        </div >
     )
 }
