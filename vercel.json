@@ -1,6 +1,10 @@
 {
     "rewrites": [
         {
+            "source": "/api/edge-generate",
+            "destination": "/api/edge-generate.ts"
+        },
+        {
             "source": "/api/(.*)",
             "destination": "/api/index.js"
         },

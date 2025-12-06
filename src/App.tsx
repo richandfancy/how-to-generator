@@ -196,8 +196,8 @@ function App() {
                 return h
             }))
 
-            // Step 2: Generate Image
-            const imageResponse = await fetch('/api/generate-image', {
+            // Step 2: Generate Image (Using Edge Function for longer timeout)
+            const imageResponse = await fetch('/api/edge-generate', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
