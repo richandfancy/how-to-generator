@@ -10,8 +10,8 @@ if (typeof process !== 'undefined' && typeof window === 'undefined') {
 const getEnvVar = (key) => {
     // 1. Client-side (Vite) - explicitly check VITE_ prefixed vars
     if (typeof import.meta !== 'undefined' && import.meta.env) {
-        if (key === 'SUPABASE_URL') return import.meta.env.VITE_SUPABASE_URL
-        if (key === 'SUPABASE_ANON_KEY') return import.meta.env.VITE_SUPABASE_ANON_KEY
+        if (key === 'SUPABASE_URL') return import.meta.env.VITE_SUPABASE_URL || import.meta.env.SUPABASE_URL
+        if (key === 'SUPABASE_ANON_KEY') return import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.SUPABASE_ANON_KEY
     }
 
     // 2. Server-side (Node) - check process.env
