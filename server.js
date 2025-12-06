@@ -35,7 +35,157 @@ const getGenAI = () => {
     return new GoogleGenerativeAI(key || '')
 }
 
-// ... existing helper functions ...
+// Helper function to escape XML characters
+function escapeXML(unsafe) {
+    return unsafe.replace(/[<>&'"]/g, function (c) {
+        switch (c) {
+            case '<': return '&lt;';
+            case '>': return '&gt;';
+            case '&': return '&amp;';
+            case '\'': return '&apos;';
+            case '"': return '&quot;';
+        }
+    })
+}
+
+// Helper function to wrap text and handle line breaks for SVG
+function wrapText(text, maxLength) {
+    const words = text.split(' ')
+    let lines = []
+    let currentLine = ''
+
+    for (const word of words) {
+        if ((currentLine + word).length > maxLength) {
+            lines.push(currentLine.trim())
+            currentLine = word + ' '
+        } else {
+            currentLine += word + ' '
+        }
+    }
+    lines.push(currentLine.trim())
+    return lines.join('\\n')
+}
+
+// Function to generate SVG from text content
+function generateHowToSVG(content, title, basePrompt) {
+    const lines = content.split('\\n')
+    let titleText = title
+    let steps = []
+    let tips = []
+    let currentSection = null
+
+    lines.forEach(line => {
+        if (line.startsWith('TITLE:')) {
+            titleText = line.substring('TITLE:'.length).trim()
+        } else if (line.startsWith('STEPS:')) {
+            currentSection = 'STEPS'
+        } else if (line.startsWith('TIPS:')) {
+            currentSection = 'TIPS'
+        } else if (currentSection === 'STEPS' && line.trim() !== '' && !line.startsWith('-')) {
+            steps.push(line.trim())
+        } else if (currentSection === 'TIPS' && line.startsWith('-')) {
+            tips.push(line.substring('-'.length).trim())
+        }
+    })
+
+    const svgWidth = 800
+    const svgHeight = 1200
+    const margin = 50
+    const titleFontSize = 48
+    const stepFontSize = 24
+    const tipFontSize = 20
+    const lineHeight = stepFontSize + 8
+    const tipLineHeight = tipFontSize + 6
+
+    let currentY = margin + titleFontSize + 30
+
+    let svg = `<svg width="${svgWidth}" height="${svgHeight}" xmlns="http://www.w3.org/2000/svg" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; font-family: 'Arial', sans-serif;">`
+    svg += `<text x="${svgWidth / 2}" y="${currentY}" text-anchor="middle" font-size="${titleFontSize}" font-weight="bold">${escapeXML(titleText)}</text>`
+    currentY += titleFontSize + 40
+    svg += `<text x="${margin}" y="${currentY}" font-size="${tipFontSize}" font-style="italic">${escapeXML(basePrompt)}</text>`
+    currentY += tipFontSize + 20
+
+    steps.forEach((step, index) => {
+        const stepLines = wrapText(step, 40).split('\\n')
+        svg += `<g transform="translate(${margin}, ${currentY})">`
+        svg += `<circle cx="30" cy="30" r="25" fill="#f0c419" />`
+        svg += `<text x="30" y="40" text-anchor="middle" font-size="${stepFontSize}" font-weight="bold" fill="#000">${index + 1}</text>`
+        stepLines.forEach((line, lineIndex) => {
+            svg += `<text x="${margin + 60}" y="${30 + lineIndex * lineHeight}" font-size="${stepFontSize}">${escapeXML(line)}</text>`
+        })
+        svg += `</g>`
+        currentY += (stepLines.length * lineHeight) + 40
+    })
+
+    if (tips.length > 0) {
+        svg += `<text x="${margin}" y="${currentY}" font-size="${stepFontSize}" font-weight="bold">Tips:</text>`
+        currentY += stepFontSize + 20
+        tips.forEach((tip, index) => {
+            const tipLines = wrapText(tip, 50).split('\\n')
+            svg += `<g transform="translate(${margin}, ${currentY})">`
+            svg += `<text x="0" y="0" font-size="${tipFontSize}" fill="#ccc">- ${escapeXML(tipLines[0])}</text>`
+            for (let i = 1; i < tipLines.length; i++) {
+                svg += `<text x="0" y="${i * tipLineHeight}" font-size="${tipFontSize}" fill="#ccc">- ${escapeXML(tipLines[i])}</text>`
+            }
+            svg += `</g>`
+            currentY += (tipLines.length * tipLineHeight) + 10
+        })
+    }
+    currentY += 40
+    svg += `<text x="${svgWidth / 2}" y="${currentY}" text-anchor="middle" font-size="16" fill="#ccc">Generated with AI</text>`
+    svg += `</svg>`
+    return svg
+}
+
+// Helper to upload to Supabase or Local
+const saveImage = async (dataBuffer, mimeType, extension) => {
+    const filename = `howto_${Date.now()}.${extension}`
+
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_ANON_KEY) {
+        console.log('☁️ Uploading to Supabase Storage...')
+        const { data, error } = await supabase.storage
+            .from('images')
+            .upload(filename, dataBuffer, {
+                contentType: mimeType,
+                upsert: false
+            })
+
+        if (error) {
+            console.error('Supabase upload error:', error)
+            console.log('⚠️ Falling back to Data URI...')
+            return {
+                url: `data:${mimeType};base64,${dataBuffer.toString('base64')}`,
+                size: (dataBuffer.length / 1024).toFixed(2) + ' KB',
+                filename: null
+            }
+        }
+
+        const { data: publicData } = supabase.storage
+            .from('images')
+            .getPublicUrl(filename)
+
+        return {
+            url: publicData.publicUrl,
+            size: (dataBuffer.length / 1024).toFixed(2) + ' KB',
+            filename
+        }
+    } else {
+        console.log('💾 Saving to local storage (Supabase not configured)...')
+        // Ensure uploads directory exists
+        const uploadsDir = path.join(__dirname, 'uploads')
+        if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true })
+        }
+
+        const filepath = path.join(uploadsDir, filename)
+        fs.writeFileSync(filepath, dataBuffer)
+        return {
+            url: `/uploads/${filename}`,
+            size: (fs.statSync(filepath).size / 1024).toFixed(2) + ' KB',
+            filename
+        }
+    }
+}
 
 // Generate text content only (Step 1)
 app.post('/api/generate-text', async (req, res) => {

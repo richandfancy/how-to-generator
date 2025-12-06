@@ -105,7 +105,7 @@ export default function ChatPanel({
                 const textData = await textResponse.json()
 
                 // Step 2: Generate Image
-                const imageResponse = await fetch('/api/generate-image', {
+                const imageResponse = await fetch('/api/edge-generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -170,7 +170,7 @@ export default function ChatPanel({
                 const textData = await textResponse.json()
 
                 // Step 2: Generate Image
-                const imageResponse = await fetch('/api/generate-image', {
+                const imageResponse = await fetch('/api/edge-generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
