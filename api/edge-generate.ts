@@ -44,6 +44,7 @@ export default async function handler(req: Request) {
             imageResponse.candidates[0].content.parts &&
             imageResponse.candidates[0].content.parts[0].inlineData) {
 
+            // ... processing code ...
             const part = imageResponse.candidates[0].content.parts[0];
             const dataBase64 = part.inlineData.data;
             const mimeType = part.inlineData.mimeType;
@@ -61,6 +62,7 @@ export default async function handler(req: Request) {
             const filename = `howto_${Date.now()}.${ext}`;
 
             // 5. Upload to Supabase (if configured)
+            // ... (keep existing upload logic) ...
             if (SUPABASE_URL && SUPABASE_ANON_KEY) {
                 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -104,14 +106,28 @@ export default async function handler(req: Request) {
             });
 
         } else {
-            throw new Error('No image data received from Gemini');
+            // Check for safety blocks or other specific reasons
+            let failureReason = 'No image data received from Gemini';
+            if (imageResponse.promptFeedback) {
+                if (imageResponse.promptFeedback.blockReason) {
+                    failureReason = `Blocked by safety filters: ${imageResponse.promptFeedback.blockReason}`;
+                }
+            }
+            throw new Error(failureReason);
         }
 
     } catch (error: any) {
         console.error('Edge generation error:', error);
+
+        // Extract deep error message if available
+        let errorMessage = error.message;
+        if (error.response && error.response.data && error.response.data.error) {
+            errorMessage = error.response.data.error.message || errorMessage;
+        }
+
         return new Response(JSON.stringify({
             error: 'Failed to generate image',
-            details: error.message
+            details: errorMessage
         }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }

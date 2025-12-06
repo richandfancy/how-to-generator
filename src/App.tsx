@@ -209,7 +209,7 @@ function App() {
 
             if (!imageResponse.ok) {
                 const errorData = await imageResponse.json().catch(() => ({ details: imageResponse.statusText }))
-                const specificError = errorData.error || errorData.details || imageResponse.statusText
+                const specificError = errorData.details || errorData.error || imageResponse.statusText
                 throw new Error(specificError || 'Image generation failed')
             }
 

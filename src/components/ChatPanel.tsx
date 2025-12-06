@@ -137,7 +137,7 @@ export default function ChatPanel({
 
                 if (!imageResponse.ok) {
                     const errorData = await imageResponse.json().catch(() => ({ details: imageResponse.statusText }))
-                    throw new Error(errorData.details || imageResponse.statusText || 'Image generation failed')
+                    throw new Error(errorData.details || errorData.error || imageResponse.statusText || 'Image generation failed')
                 }
 
                 const imageData = await imageResponse.json()
@@ -206,7 +206,7 @@ export default function ChatPanel({
 
                 if (!imageResponse.ok) {
                     const errorData = await imageResponse.json().catch(() => ({ details: imageResponse.statusText }))
-                    throw new Error(errorData.details || imageResponse.statusText || 'Image generation failed')
+                    throw new Error(errorData.details || errorData.error || imageResponse.statusText || 'Image generation failed')
                 }
 
                 const imageData = await imageResponse.json()
