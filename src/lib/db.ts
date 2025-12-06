@@ -13,7 +13,7 @@ const mapFromDb = (row: any): HowTo => ({
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     messages: row.messages || [],
-    status: 'completed' // Default to completed for loaded items
+    status: row.status || 'completed' // Use DB status if available
 })
 
 // Map App camelCase to DB snake_case
@@ -26,6 +26,7 @@ const mapToDb = (howTo: HowTo) => ({
     versions: howTo.versions,
     current_version: howTo.currentVersion,
     messages: howTo.messages,
+    status: howTo.status,
     updated_at: new Date().toISOString()
 })
 
@@ -45,7 +46,10 @@ export const db = {
 
     async save(howTo: HowTo) {
         // Don't save placeholder/generating items to DB yet
-        if (howTo.status === 'generating') return
+        // if (howTo.status === 'generating') return
+
+        // Actually, we SHOULD save 'error' and maybe 'generating' if we want persistence across reloads
+        // But for now, let's at least allow everything so 'error' status saves.
 
         const row = mapToDb(howTo)
         const { error } = await supabase
